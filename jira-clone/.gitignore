@@ -1,0 +1,21 @@
+# OS files
+.DS_Store
+Thumbs.db
+
+# IDE files
+.vscode/
+.idea/
+*.iml
+*.iws
+*.ipr
+
+# Root build artifacts
+/jira-clone/target/
+
+# Subproject artifacts and dependencies (Backup ignore)
+**/target/
+**/node_modules/
+**/dist/
+**/build/
+**/.env
+**/.env.local
