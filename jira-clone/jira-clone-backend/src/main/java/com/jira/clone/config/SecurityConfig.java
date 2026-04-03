@@ -56,6 +56,7 @@ public class SecurityConfig {
                     "/ws-jira-clone/**",
                     "/uploads/**"
                 ).permitAll()
+                .requestMatchers(org.springframework.http.HttpMethod.OPTIONS, "/**").permitAll() // Cho phép Pre-flight
                 .anyRequest().authenticated()
             )
             .addFilterBefore(jwtAuthenticationFilter, UsernamePasswordAuthenticationFilter.class);

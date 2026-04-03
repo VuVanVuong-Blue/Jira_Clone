@@ -73,10 +73,15 @@ export default function BoardPage({ onLogout }) {
     }
   }
 
+  const [dragStartStatusId, setDragStartStatusId] = useState(null)
+
   const handleDragStart = (event) => {
     const { active } = event
     if (active.data.current?.type === 'Issue') {
-      setActiveIssue(active.data.current.issue)
+      const issue = active.data.current.issue
+      setActiveIssue(issue)
+      setDragStartStatusId(issue.statusId) // Ghi nhớ status gốc ở đây
+      console.log(`Bắt đầu kéo [${issue.issueKey}] từ Status ID: ${issue.statusId}`)
     }
   }
 
@@ -96,52 +101,61 @@ export default function BoardPage({ onLogout }) {
     const realActiveId = active.data.current.issue.id
 
     setIssues(prev => {
-      const activeItems = [...prev]
-      const activeIndex = activeItems.findIndex(i => String(i.id) === String(realActiveId))
+      const activeIndex = prev.findIndex(i => i.id === realActiveId)
       if (activeIndex === -1) return prev
+      
+      const activeTask = prev[activeIndex]
+      let newStatusId = activeTask.statusId
 
-      const activeTask = activeItems[activeIndex]
-
-      // Dragging over another task
       if (isOverTask) {
-        const overTask = over.data.current.issue
-        
-        // If moving to a different status, update statusId
-        if (activeTask.statusId !== overTask.statusId) {
-          activeTask.statusId = overTask.statusId
-        }
-        
-        const realOverId = overTask.id
-        const overIndex = activeItems.findIndex(i => String(i.id) === String(realOverId))
-        return arrayMove(activeItems, activeIndex, overIndex)
+        newStatusId = over.data.current.issue.statusId
+      } else if (isOverColumn) {
+        newStatusId = over.data.current.column.id
       }
 
-      // Dragging over an empty column
-      if (isOverColumn) {
-        const realColId = over.data.current.column.id
-        if (activeTask.statusId !== realColId) {
-          activeTask.statusId = realColId
-          activeItems.splice(activeIndex, 1)
-          activeItems.push(activeTask)
-          return [...activeItems]
+      if (activeTask.statusId !== newStatusId) {
+        console.log(`Đang thay đổi trạng thái [${activeTask.issueKey}]: ${activeTask.statusId} -> ${newStatusId}`)
+        const updatedIssues = [...prev]
+        updatedIssues[activeIndex] = { ...activeTask, statusId: newStatusId }
+        
+        if (isOverTask) {
+          const overIndex = prev.findIndex(i => i.id === over.data.current.issue.id)
+          return arrayMove(updatedIssues, activeIndex, overIndex)
+        }
+        return updatedIssues
+      }
+      
+      // If same status but moving between tasks
+      if (isOverTask) {
+        const overIndex = prev.findIndex(i => i.id === over.data.current.issue.id)
+        if (activeIndex !== overIndex) {
+          return arrayMove([...prev], activeIndex, overIndex)
         }
       }
+
       return prev
     })
   }
 
   const handleDragEnd = async (event) => {
-    const { active, over } = event
     setActiveIssue(null)
+    const { active, over } = event
+    
+    if (!over) {
+      console.warn("Thả chuột ngoài vùng hợp lệ! Không thực hiện lưu.");
+      return
+    }
 
-    if (!over) return
-
-    const activeId = active.id
-    const overId = over.id
-
-    if (activeId === overId) return
+    const { id: activeId } = active
+    const { id: overId } = over
 
     const isColumnDrag = active.data.current?.type === 'Column'
+    
+    // Nếu kéo cột và không đổi vị trí thì mới return
+    if (isColumnDrag && activeId === overId) {
+      console.log("Kéo cột: Vị trí không đổi.");
+      return
+    }
     
     if (isColumnDrag) {
       if (over.data.current?.type !== 'Column') return
@@ -163,14 +177,29 @@ export default function BoardPage({ onLogout }) {
     const finalIssue = issues.find(i => i.id === draggedIssue.id)
     if (!finalIssue) return
 
+    // So sánh với status BAN ĐẦU lúc bắt đầu kéo
+    if (Number(finalIssue.statusId) === Number(dragStartStatusId)) {
+      console.log("Kéo Issue: Thả về cột cũ, không cần lưu.");
+      return;
+    }
+
+    console.log(`=> Đang lưu thay đổi cho [${finalIssue.issueKey}] từ Status ${dragStartStatusId} sang ${finalIssue.statusId}`);
+    
     try {
-      await api.moveIssue(finalIssue.id, {
+      const res = await api.moveIssue(finalIssue.id, {
         newStatusId: Number(finalIssue.statusId),
         version: finalIssue.version
       })
+      if (res.ok) {
+        console.log(`Đã cập nhật trạng thái lên Server cho [${res.data.issueKey}]:`, res.data.statusName)
+        setIssues(prev => prev.map(i => i.id === res.data.id ? res.data : i))
+      } else {
+        addToast(res.data?.message || 'Cập nhật trạng thái thất bại', 'error')
+        fetchBoardData()
+      }
     } catch (e) {
-      addToast('Cập nhật trạng thái thất bại', 'error')
-      fetchBoardData() // Re-sync with server on failure
+      addToast('Lỗi hệ thống khi cập nhật trạng thái', 'error')
+      fetchBoardData()
     }
   }
 
@@ -311,7 +340,7 @@ export default function BoardPage({ onLogout }) {
           <h2 style={{ fontSize: '20px', fontWeight: '600', color: '#172B4D', margin: '0 0 12px 0' }}>Bắt đầu từ Backlog</h2>
           <p style={{ fontSize: '15px', color: '#5E6C84', margin: '0 0 24px 0' }}>Hãy lên kế hoạch và bắt đầu một Sprint để hiển thị công việc tại đây.</p>
           <button 
-            onClick={() => navigate(`/project/${id}/backlog`)}
+            onClick={() => navigate(`/projects/${id}/backlog`)}
             style={{ padding: '8px 16px', backgroundColor: 'transparent', color: '#172B4D', border: '1px solid #DFE1E6', borderRadius: '4px', fontWeight: '500', cursor: 'pointer', fontSize: '14px', transition: 'background-color 0.2s', ':hover': { backgroundColor: '#F4F5F7' } }}
             onMouseOver={(e) => e.target.style.backgroundColor = '#F4F5F7'}
             onMouseOut={(e) => e.target.style.backgroundColor = 'transparent'}
@@ -330,7 +359,13 @@ export default function BoardPage({ onLogout }) {
           >
             <SortableContext items={columns.map(c => `col-${c.id}`)} strategy={horizontalListSortingStrategy}>
               {columns.map((col) => {
-                const columnIssues = issues.filter(i => i.statusId === col.id)
+                const colId = Number(col.id)
+                const columnIssues = issues.filter(i => Number(i.statusId) === colId)
+                
+                if (activeIssue) {
+                   console.log(`Render [${col.name}] (${colId}): ${columnIssues.length} issues`)
+                }
+
                 return <KanbanColumn 
                   key={col.id} 
                   column={col} 

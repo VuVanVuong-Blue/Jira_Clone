@@ -14,4 +14,10 @@ public interface NotificationRepository extends JpaRepository<Notification, Long
     
     // Đếm số lượng thông báo chưa đọc (hiện chấm đỏ trên UI)
     long countByRecipientIdAndIsReadFalse(Long recipientId);
+
+    // Tìm thông báo liên quan đến lời mời dự án
+    java.util.Optional<Notification> findByProjectInvitationId(Long projectInvitationId);
+
+    // Xóa tất cả thông báo của một lời mời (sau khi đã xử lý xong)
+    void deleteByProjectInvitationId(Long projectInvitationId);
 }

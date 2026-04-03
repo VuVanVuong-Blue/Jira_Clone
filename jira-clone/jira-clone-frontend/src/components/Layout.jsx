@@ -90,10 +90,32 @@ export default function Layout({ children, onLogout, projectId }) {
     }
   }
 
-  const handleNotificationAction = (id) => {
-    // Refresh both list and count after an action (Accept/Reject)
+  const handleNotificationAction = (id, status) => {
+    // Tìm invitationId của thông báo vừa click
+    const clickedNotification = notifications.find(n => n.id === id)
+    const invitationId = clickedNotification ? clickedNotification.invitationId : null
+    
+    // Xóa tất cả thông báo liên quan đến invitationId này khỏi local state ngay lập tức
+    if (invitationId) {
+      setNotifications(prev => prev.filter(n => n.invitationId !== invitationId))
+    } else {
+      setNotifications(prev => prev.filter(n => n.id !== id))
+    }
+    
+    // Refresh cả count và list từ server cho chắc chắn
     fetchNotificationData()
     fetchNotificationsList()
+  }
+
+  const handleDeleteNotification = async (id) => {
+    try {
+      setNotifications(prev => prev.filter(n => n.id !== id))
+      await api.deleteNotification(id)
+      const countRes = await api.getUnreadCount()
+      if (countRes.ok) setUnreadCount(countRes.data)
+    } catch (e) {
+      addToast('Lỗi khi xóa thông báo', 'error')
+    }
   }
 
   const fetchSpaces = async () => {
@@ -196,6 +218,7 @@ export default function Layout({ children, onLogout, projectId }) {
                           notification={n} 
                           onRead={handleMarkRead} 
                           onAction={handleNotificationAction} 
+                          onDelete={handleDeleteNotification}
                         />
                       ))}
                     </div>

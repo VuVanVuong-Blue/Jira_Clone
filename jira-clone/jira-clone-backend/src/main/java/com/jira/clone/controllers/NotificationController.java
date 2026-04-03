@@ -39,6 +39,7 @@ public class NotificationController {
                 // Project invitation info
                 .projectName(n.getProjectInvitation() != null ? n.getProjectInvitation().getProject().getName() : null)
                 .invitationId(n.getProjectInvitation() != null ? n.getProjectInvitation().getId() : null)
+                .invitationStatus(n.getProjectInvitation() != null ? n.getProjectInvitation().getStatus().name() : null)
                 .build()).collect(Collectors.toList()));
     }
 
@@ -61,6 +62,13 @@ public class NotificationController {
     public ResponseEntity<Void> markAllRead(Authentication auth) {
         Long userId = (Long) auth.getPrincipal();
         notificationService.markAllAsRead(userId);
+        return ResponseEntity.ok().build();
+    }
+
+    //API xóa một thông báo cụ thể
+    @DeleteMapping("/{id}")
+    public ResponseEntity<Void> deleteNotification(@PathVariable("id") Long id) {
+        notificationService.deleteNotification(id);
         return ResponseEntity.ok().build();
     }
 }

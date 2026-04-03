@@ -173,6 +173,7 @@ public class AuthServiceImpl implements AuthService {
         existingToken.setIsRevoked(true);
         refreshTokenRepository.save(existingToken);
 
+        // Sử dụng userId làm subject cho token mới
         String newAccessToken = jwtUtils.generateAccessToken(
                 user.getId().toString(), user.getId(), user.getGlobalRole().name());
         RefreshToken newRefreshToken = createRefreshToken(user);

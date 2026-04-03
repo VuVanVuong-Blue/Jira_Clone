@@ -60,4 +60,22 @@ public class NotificationService {
         unread.forEach(n -> n.setIsRead(true));
         notificationRepository.saveAll(unread);
     }
+
+    @Transactional
+    public void markInvitationNotificationRead(Long invitationId) {
+        notificationRepository.findByProjectInvitationId(invitationId).ifPresent(n -> {
+            n.setIsRead(true);
+            notificationRepository.save(n);
+        });
+    }
+
+    @Transactional
+    public void removeInvitationNotifications(Long invitationId) {
+        notificationRepository.deleteByProjectInvitationId(invitationId);
+    }
+
+    @Transactional
+    public void deleteNotification(Long id) {
+        notificationRepository.deleteById(id);
+    }
 }

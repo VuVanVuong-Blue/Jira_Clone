@@ -10,31 +10,38 @@ apiClient.interceptors.request.use(config => {
     try {
       const auth = JSON.parse(stored)
       if (auth.accessToken) {
-        config.headers.Authorization = `Bearer ${auth.accessToken}`
+        // Sử dụng bracket notation và đảm bảo headers exists
+        config.headers = config.headers || {}
+        config.headers['Authorization'] = `Bearer ${auth.accessToken}`
       }
     } catch (e) {
-      console.error(e)
+      console.error('Lỗi parse auth:', e)
     }
   }
   return config
 }, error => Promise.reject(error))
 
-// Interceptor xử lý response để đồng nhất định dạng { ok, data } cho frontend
+// Interceptor xử lý response
 apiClient.interceptors.response.use(
   response => ({ ok: true, data: response.data }),
   async error => {
     const originalRequest = error.config
     
-    // Nếu gặp 401 Unauthorized và chưa thử refresh
-    if (error.response?.status === 401 && !originalRequest._retry && !originalRequest.url.includes('/auth/login') && !originalRequest.url.includes('/auth/google')) {
+    // Nếu gặp 401 và chưa retry
+    if (error.response?.status === 401 && !originalRequest._retry) {
+      if (originalRequest.url.includes('/auth/login') || originalRequest.url.includes('/auth/refresh')) {
+        return { ok: false, data: error.response?.data || { message: 'Lỗi đăng nhập/refresh' } }
+      }
+      
       originalRequest._retry = true
+      console.warn('Lỗi 401, đang thử làm mới token...', originalRequest.url)
       
       const stored = localStorage.getItem('jira_auth')
       if (stored) {
         try {
           const auth = JSON.parse(stored)
           if (auth.refreshToken) {
-            // Gọi api refresh thủ công (dùng axios trực tiếp để tránh loop interceptor này)
+            // Không dùng apiClient ở đây để tránh loop
             const refreshRes = await axios.post(`${API_BASE}/auth/refresh`, {
               refreshToken: auth.refreshToken
             })
@@ -43,19 +50,28 @@ apiClient.interceptors.response.use(
               const newAuth = { ...auth, ...refreshRes.data }
               localStorage.setItem('jira_auth', JSON.stringify(newAuth))
               
-              // Đính kèm token mới vào request bị lỗi và thử lại
-              originalRequest.headers.Authorization = `Bearer ${newAuth.accessToken}`
-              return apiClient(originalRequest)
+              // Đảm bảo method là VIẾT HOA (một số server kén DELETE viết thường) và gắn Token mới
+              const retryConfig = {
+                ...originalRequest,
+                method: originalRequest.method?.toUpperCase() || 'GET',
+                headers: {
+                  ...originalRequest.headers,
+                  'Authorization': `Bearer ${newAuth.accessToken}`
+                }
+              }
+              
+              console.log('Đang thử lại với Token mới:', retryConfig.method, retryConfig.url)
+              return apiClient.request(retryConfig)
             }
           }
         } catch (e) {
+          console.error('Làm mới token thất bại:', e)
           localStorage.removeItem('jira_auth')
           if (window.location.pathname !== '/login') window.location.href = '/login'
         }
       }
     }
     
-    // Trả về định dạng lỗi đồng nhất
     return { 
       ok: false, 
       data: error.response?.data || { message: error.message || 'Lỗi kết nối server!' } 
@@ -121,6 +137,7 @@ export const api = {
   getUnreadCount: () => apiClient.get('/notifications/unread-count'),
   markNotificationRead: (id) => apiClient.put(`/notifications/${id}/read`),
   markAllNotificationsRead: () => apiClient.put('/notifications/mark-all-read'),
+  deleteNotification: (id) => apiClient.delete(`/notifications/${id}`),
 
   // --- INVITATION ENDPOINTS ---
   inviteUser: (projectId, data) => apiClient.post(`/invitations/project/${projectId}`, data),

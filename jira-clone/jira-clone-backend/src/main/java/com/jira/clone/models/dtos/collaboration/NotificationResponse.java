@@ -26,4 +26,5 @@ public class NotificationResponse {
     // Invitation specific
     private String projectName;
     private Long invitationId;
+    private String invitationStatus;
 }

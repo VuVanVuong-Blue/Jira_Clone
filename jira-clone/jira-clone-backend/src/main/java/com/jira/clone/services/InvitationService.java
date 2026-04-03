@@ -89,12 +89,22 @@ public class InvitationService {
             throw new RuntimeException("You are not authorized to accept this invitation");
         }
 
+        // If already accepted, just return silently
+        if (invitation.getStatus() == InvitationStatus.ACCEPTED) {
+             notificationService.removeInvitationNotifications(invitationId);
+             return;
+        }
+
         if (invitation.getStatus() != InvitationStatus.PENDING) {
-            throw new RuntimeException("Invitation is no longer pending");
+             notificationService.removeInvitationNotifications(invitationId);
+             return; // Or throw custom exception. Silencing for better UX as requested.
         }
 
         invitation.setStatus(InvitationStatus.ACCEPTED);
         invitationRepository.save(invitation);
+
+        // Xóa thông báo liên quan
+        notificationService.removeInvitationNotifications(invitationId);
 
         // Add to project members
         ProjectMember member = ProjectMember.builder()
@@ -115,8 +125,16 @@ public class InvitationService {
         if (!invitation.getInvitee().getId().equals(userId)) {
             throw new RuntimeException("You are not authorized to reject this invitation");
         }
+        
+        if (invitation.getStatus() == InvitationStatus.REJECTED || invitation.getStatus() == InvitationStatus.ACCEPTED) {
+            notificationService.removeInvitationNotifications(invitationId);
+            return;
+        }
 
         invitation.setStatus(InvitationStatus.REJECTED);
         invitationRepository.save(invitation);
+        
+        // Xóa thông báo liên quan
+        notificationService.removeInvitationNotifications(invitationId);
     }
 }

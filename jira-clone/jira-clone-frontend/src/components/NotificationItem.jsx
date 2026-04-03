@@ -3,12 +3,14 @@ import { useNavigate } from 'react-router-dom'
 import { api } from '../services/api'
 import { useToast } from './Toast'
 
-export default function NotificationItem({ notification, onRead, onAction }) {
+export default function NotificationItem({ notification, onRead, onAction, onDelete }) {
   const navigate = useNavigate()
   const { addToast } = useToast()
   const [loading, setLoading] = React.useState(false)
+  const [showX, setShowX] = React.useState(false)
 
   const isInvitation = notification.type === 'project_invitation'
+// ... (lines truncated for thought, but I'll write the full replacement below)
 
   const handleClick = () => {
     if (!notification.isRead) onRead(notification.id)
@@ -25,7 +27,7 @@ export default function NotificationItem({ notification, onRead, onAction }) {
       const res = await api.acceptInvitation(notification.invitationId)
       if (res.ok) {
         addToast('Đã chấp nhận lời mời tham gia dự án!', 'success')
-        onAction(notification.id)
+        onAction(notification.id, 'ACCEPTED')
       } else {
         addToast(res.data.message || 'Lỗi khi chấp nhận lời mời', 'error')
       }
@@ -42,7 +44,7 @@ export default function NotificationItem({ notification, onRead, onAction }) {
       const res = await api.rejectInvitation(notification.invitationId)
       if (res.ok) {
         addToast('Đã từ chối lời mời', 'info')
-        onAction(notification.id)
+        onAction(notification.id, 'REJECTED')
       }
     } catch (e) {
       addToast('Lỗi kết nối', 'error')
@@ -64,6 +66,8 @@ export default function NotificationItem({ notification, onRead, onAction }) {
   return (
     <div 
       onClick={handleClick}
+      onMouseEnter={() => setShowX(true)}
+      onMouseLeave={() => setShowX(false)}
       style={{ 
         padding: '16px 20px', 
         borderBottom: '1px solid #EBECF0', 
@@ -95,29 +99,75 @@ export default function NotificationItem({ notification, onRead, onAction }) {
           {new Date(notification.createdAt).toLocaleString('vi-VN')}
         </div>
 
-        {isInvitation && !notification.isRead && (
-          <div style={{ display: 'flex', gap: '8px', marginTop: '14px' }}>
-            <button 
-              onClick={handleAccept}
-              disabled={loading}
-              style={{ padding: '6px 16px', backgroundColor: '#0C66E4', color: 'white', border: 'none', borderRadius: '4px', fontSize: '13px', fontWeight: '500', cursor: loading ? 'not-allowed' : 'pointer', transition: 'background-color 0.2s', display: 'flex', alignItems: 'center', gap: '6px' }}
-              onMouseOver={e => !loading && (e.currentTarget.style.backgroundColor = '#0052CC')}
-              onMouseOut={e => !loading && (e.currentTarget.style.backgroundColor = '#0C66E4')}
-            >
-              {loading ? 'Đang xử lý...' : 'Chấp nhận'}
-            </button>
-            <button 
-              onClick={handleReject}
-              disabled={loading}
-              style={{ padding: '6px 16px', backgroundColor: 'transparent', color: '#44546F', border: '1px solid #DCDFE4', borderRadius: '4px', fontSize: '13px', fontWeight: '500', cursor: loading ? 'not-allowed' : 'pointer', transition: 'background-color 0.2s' }}
-              onMouseOver={e => !loading && (e.currentTarget.style.backgroundColor = '#F1F2F4')}
-              onMouseOut={e => !loading && (e.currentTarget.style.backgroundColor = 'transparent')}
-            >
-              Từ chối
-            </button>
+        {isInvitation && (
+          <div style={{ marginTop: '14px' }}>
+            {notification.invitationStatus === 'ACCEPTED' || notification.isRead || notification.invitationStatus === 'REJECTED' ? (
+              <div style={{ 
+                display: 'inline-flex', 
+                alignItems: 'center', 
+                gap: '6px', 
+                padding: '4px 12px', 
+                backgroundColor: notification.invitationStatus === 'REJECTED' ? '#FFEBE6' : '#E3FCEF', 
+                color: notification.invitationStatus === 'REJECTED' ? '#BF2600' : '#006644', 
+                borderRadius: '4px', 
+                fontSize: '12px', 
+                fontWeight: '600' 
+              }}>
+                {notification.invitationStatus === 'REJECTED' ? (
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+                ) : (
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
+                )}
+                {notification.invitationStatus === 'REJECTED' ? 'Đã từ chối' : 'Đã chấp nhận'}
+              </div>
+            ) : (
+              <div style={{ display: 'flex', gap: '8px' }}>
+                <button 
+                  onClick={handleAccept}
+                  disabled={loading}
+                  style={{ padding: '6px 16px', backgroundColor: '#0C66E4', color: 'white', border: 'none', borderRadius: '4px', fontSize: '13px', fontWeight: '500', cursor: loading ? 'not-allowed' : 'pointer', transition: 'background-color 0.2s', display: 'flex', alignItems: 'center', gap: '6px' }}
+                  onMouseOver={e => !loading && (e.currentTarget.style.backgroundColor = '#0052CC')}
+                  onMouseOut={e => !loading && (e.currentTarget.style.backgroundColor = '#0C66E4')}
+                >
+                  {loading ? 'Đang xử lý...' : 'Chấp nhận'}
+                </button>
+                <button 
+                  onClick={handleReject}
+                  disabled={loading}
+                  style={{ padding: '6px 16px', backgroundColor: 'transparent', color: '#44546F', border: '1px solid #DCDFE4', borderRadius: '4px', fontSize: '13px', fontWeight: '500', cursor: loading ? 'not-allowed' : 'pointer', transition: 'background-color 0.2s' }}
+                  onMouseOver={e => !loading && (e.currentTarget.style.backgroundColor = '#F1F2F4')}
+                  onMouseOut={e => !loading && (e.currentTarget.style.backgroundColor = 'transparent')}
+                >
+                  Từ chối
+                </button>
+              </div>
+            )}
           </div>
         )}
       </div>
+      {/* Delete Button (Visible on hover) */}
+      <button 
+        onClick={(e) => { e.stopPropagation(); onDelete(notification.id); }}
+        style={{ 
+          position: 'absolute', 
+          top: '12px', 
+          right: '12px', 
+          background: 'none', 
+          border: 'none', 
+          color: '#626F86', 
+          cursor: 'pointer', 
+          opacity: showX ? 1 : 0, 
+          transition: 'opacity 0.2s',
+          padding: '4px',
+          borderRadius: '4px'
+        }}
+        onMouseOver={e => e.currentTarget.style.backgroundColor = '#F1F2F4'}
+        onMouseOut={e => e.currentTarget.style.backgroundColor = 'transparent'}
+        title="Xóa thông báo"
+      >
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+      </button>
+
       {!notification.isRead && (
         <div style={{ width: '8px', height: '8px', borderRadius: '50%', backgroundColor: '#0C66E4', flexShrink: 0, marginTop: '6px' }} />
       )}
