@@ -25,22 +25,25 @@ public class NotificationController {
     public ResponseEntity<List<NotificationResponse>> getNotifications(Authentication auth) {
         Long userId = (Long) auth.getPrincipal();
         List<Notification> list = notificationService.getNotificationsForUser(userId);
-        return ResponseEntity.ok(list.stream().map(n -> NotificationResponse.builder()
-                .id(n.getId())
-                .actorId(n.getActor().getId())
-                .actorName(n.getActor().getFullName())
-                .actorAvatarUrl(n.getActor().getAvatarUrl())
-                .issueId(n.getIssue() != null ? n.getIssue().getId() : null)
-                .issueKey(n.getIssue() != null ? n.getIssue().getIssueKey() : null)
-                .issueSummary(n.getIssue() != null ? n.getIssue().getSummary() : null)
-                .type(n.getType())
-                .isRead(n.getIsRead())
-                .createdAt(n.getCreatedAt())
-                // Project invitation info
-                .projectName(n.getProjectInvitation() != null ? n.getProjectInvitation().getProject().getName() : null)
-                .invitationId(n.getProjectInvitation() != null ? n.getProjectInvitation().getId() : null)
-                .invitationStatus(n.getProjectInvitation() != null ? n.getProjectInvitation().getStatus().name() : null)
-                .build()).collect(Collectors.toList()));
+        return ResponseEntity.ok(list.stream().map(n -> {
+                var actor = n.getActor(); // null khi hệ thống tự gửi (deadline_reminder)
+                return NotificationResponse.builder()
+                        .id(n.getId())
+                        .actorId(actor != null ? actor.getId() : null)
+                        .actorName(actor != null ? actor.getFullName() : null)
+                        .actorAvatarUrl(actor != null ? actor.getAvatarUrl() : null)
+                        .issueId(n.getIssue() != null ? n.getIssue().getId() : null)
+                        .issueKey(n.getIssue() != null ? n.getIssue().getIssueKey() : null)
+                        .issueSummary(n.getIssue() != null ? n.getIssue().getSummary() : null)
+                        .type(n.getType())
+                        .isRead(n.getIsRead())
+                        .createdAt(n.getCreatedAt())
+                        // Project invitation info
+                        .projectName(n.getProjectInvitation() != null ? n.getProjectInvitation().getProject().getName() : null)
+                        .invitationId(n.getProjectInvitation() != null ? n.getProjectInvitation().getId() : null)
+                        .invitationStatus(n.getProjectInvitation() != null ? n.getProjectInvitation().getStatus().name() : null)
+                        .build();
+        }).collect(Collectors.toList()));
     }
 
     //API lấy số lượng thông báo chưa đọc

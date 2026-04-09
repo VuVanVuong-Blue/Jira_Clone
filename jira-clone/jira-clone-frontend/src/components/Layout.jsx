@@ -37,7 +37,6 @@ export default function Layout({ children, onLogout, projectId }) {
   }, [])
 
   const fetchNotificationData = async () => {
-    if (!user) return
     try {
       const countRes = await api.getUnreadCount()
       if (countRes.ok) setUnreadCount(countRes.data)
@@ -63,8 +62,14 @@ export default function Layout({ children, onLogout, projectId }) {
     setLoadingNotifications(true)
     try {
       const res = await api.getNotifications()
-      if (res.ok) setNotifications(res.data)
+      console.log('[Notifications] API response:', res.ok, res.data)
+      if (res.ok) {
+        setNotifications(res.data)
+      } else {
+        console.error('[Notifications] API error:', res.data)
+      }
     } catch (e) {
+      console.error('[Notifications] Exception:', e)
       addToast('Lỗi khi tải thông báo', 'error')
     }
     setLoadingNotifications(false)

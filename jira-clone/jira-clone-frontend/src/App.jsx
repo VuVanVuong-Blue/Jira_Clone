@@ -39,12 +39,22 @@ function AppContent() {
   }, [])
 
   const handleAuth = (data) => {
-    localStorage.setItem('jira_auth', JSON.stringify(data))
-    setAuth(data)
+    // Không lưu refreshToken vào localStorage — nó đã nằm trong HttpOnly Cookie
+    const { refreshToken: _rt, ...safeData } = data
+    localStorage.setItem('jira_auth', JSON.stringify(safeData))
+    setAuth(safeData)
     if (data && data.user) updateUser(data.user)
+    console.log('[APP] Auth saved to localStorage (refreshToken excluded)')
   }
 
-  const handleLogout = () => {
+  const handleLogout = async () => {
+    try {
+      // Xóa HttpOnly Cookie phía backend
+      await fetch('/api/auth/logout', { method: 'POST', credentials: 'include' })
+      console.log('[APP] Logout: HttpOnly Cookie cleared')
+    } catch (e) {
+      console.warn('[APP] Logout cookie clear failed:', e)
+    }
     localStorage.removeItem('jira_auth')
     setAuth(null)
     updateUser(null)

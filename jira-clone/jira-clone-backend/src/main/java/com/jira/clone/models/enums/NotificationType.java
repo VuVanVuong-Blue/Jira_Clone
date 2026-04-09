@@ -6,5 +6,6 @@ public enum NotificationType {
     status_changed,
     comment_added,
     attachment_added,
-    project_invitation
+    project_invitation,
+    deadline_reminder
 }

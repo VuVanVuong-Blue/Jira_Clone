@@ -10,6 +10,7 @@ export default function NotificationItem({ notification, onRead, onAction, onDel
   const [showX, setShowX] = React.useState(false)
 
   const isInvitation = notification.type === 'project_invitation'
+  const isDeadlineReminder = notification.type === 'deadline_reminder'
 // ... (lines truncated for thought, but I'll write the full replacement below)
 
   const handleClick = () => {
@@ -54,11 +55,12 @@ export default function NotificationItem({ notification, onRead, onAction, onDel
 
   const getMessage = () => {
     switch (notification.type) {
-      case 'assigned': return `đã giao [${notification.issueKey}] cho bạn`
-      case 'mentioned': return `đã nhắc đến bạn trong [${notification.issueKey}]`
-      case 'status_changed': return `đã cập nhật trạng thái [${notification.issueKey}]`
-      case 'comment_added': return `đã bình luận vào [${notification.issueKey}]`
-      case 'project_invitation': return `đã mời bạn tham gia dự án "${notification.projectName}"`
+      case 'assigned':          return `đã giao [${notification.issueKey}] cho bạn`
+      case 'mentioned':         return `đã nhắc đến bạn trong [${notification.issueKey}]`
+      case 'status_changed':    return `đã cập nhật trạng thái [${notification.issueKey}]`
+      case 'comment_added':     return `đã bình luận vào [${notification.issueKey}]`
+      case 'project_invitation':return `đã mời bạn tham gia dự án "${notification.projectName}"`
+      case 'deadline_reminder': return `Task [${notification.issueKey}] sắp hết hạn vào ngày mai! Hãy cập nhật tiến độ.`
       default: return 'đã cập nhật nội dung'
     }
   }
@@ -86,13 +88,43 @@ export default function NotificationItem({ notification, onRead, onAction, onDel
       )}
       
       {/* Avatar / Icon */}
-      <div style={{ width: '40px', height: '40px', borderRadius: '50%', backgroundColor: isInvitation ? '#E3FCEF' : '#E9F2FF', color: isInvitation ? '#006644' : '#0C66E4', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '15px', fontWeight: 'bold', flexShrink: 0, border: isInvitation ? '1px solid #00664420' : '1px solid #0C66E420' }}>
-        {notification.actorAvatarUrl ? <img src={notification.actorAvatarUrl} alt="avatar" style={{ width: '100%', height: '100%', borderRadius: '50%', objectFit: 'cover' }} /> : (isInvitation ? <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><polyline points="16 11 18 13 22 9"/></svg> : notification.actorName?.charAt(0))}
+      <div style={{
+        width: '40px', height: '40px', borderRadius: '50%',
+        backgroundColor: isDeadlineReminder ? '#FFF0E6' : (isInvitation ? '#E3FCEF' : '#E9F2FF'),
+        color: isDeadlineReminder ? '#DE350B' : (isInvitation ? '#006644' : '#0C66E4'),
+        display: 'flex', alignItems: 'center', justifyContent: 'center',
+        fontSize: '15px', fontWeight: 'bold', flexShrink: 0,
+        border: isDeadlineReminder ? '1px solid #DE350B20' : (isInvitation ? '1px solid #00664420' : '1px solid #0C66E420')
+      }}>
+        {isDeadlineReminder ? (
+          // Icon đồng hồ cho deadline reminder
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+            <circle cx="12" cy="12" r="10"/>
+            <polyline points="12 6 12 12 16 14"/>
+          </svg>
+        ) : notification.actorAvatarUrl ? (
+          <img src={notification.actorAvatarUrl} alt="avatar" style={{ width: '100%', height: '100%', borderRadius: '50%', objectFit: 'cover' }} />
+        ) : isInvitation ? (
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+            <path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/>
+            <circle cx="9" cy="7" r="4"/>
+            <polyline points="16 11 18 13 22 9"/>
+          </svg>
+        ) : (
+          notification.actorName?.charAt(0)
+        )}
       </div>
 
       <div style={{ flex: 1 }}>
         <div style={{ fontSize: '14px', color: '#172B4D', lineHeight: '1.5', paddingRight: '12px' }}>
-          <span style={{ fontWeight: '600' }}>{notification.actorName}</span> {getMessage()}
+          {/* Ẩn actorName khi là deadline_reminder (hệ thống tự gửi) */}
+          {!isDeadlineReminder && notification.actorName && (
+            <span style={{ fontWeight: '600' }}>{notification.actorName}</span>
+          )}{!isDeadlineReminder && notification.actorName ? ' ' : ''}
+          {isDeadlineReminder
+            ? <span><span style={{ color: '#DE350B', fontWeight: '600' }}>⚠️ Nhắc hạn: </span>{getMessage()}</span>
+            : getMessage()
+          }
         </div>
         <div style={{ fontSize: '12px', color: '#626F86', marginTop: '6px', display: 'flex', alignItems: 'center', gap: '4px' }}>
           <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>

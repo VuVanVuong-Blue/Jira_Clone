@@ -1,7 +1,10 @@
 import axios from 'axios'
 
 const API_BASE = '/api'
-const apiClient = axios.create({ baseURL: API_BASE })
+const apiClient = axios.create({
+  baseURL: API_BASE,
+  withCredentials: true // Gửi HttpOnly Cookie (refreshToken) kèm mọi request
+})
 
 // Interceptor mồi thêm Token vào header
 apiClient.interceptors.request.use(config => {
@@ -34,41 +37,40 @@ apiClient.interceptors.response.use(
       }
       
       originalRequest._retry = true
-      console.warn('Lỗi 401, đang thử làm mới token...', originalRequest.url)
+      console.warn('[API] Lỗi 401, đang thử làm mới Access Token...', originalRequest.url)
       
-      const stored = localStorage.getItem('jira_auth')
-      if (stored) {
-        try {
-          const auth = JSON.parse(stored)
-          if (auth.refreshToken) {
-            // Không dùng apiClient ở đây để tránh loop
-            const refreshRes = await axios.post(`${API_BASE}/auth/refresh`, {
-              refreshToken: auth.refreshToken
-            })
-            
-            if (refreshRes.data && refreshRes.data.accessToken) {
-              const newAuth = { ...auth, ...refreshRes.data }
-              localStorage.setItem('jira_auth', JSON.stringify(newAuth))
-              
-              // Đảm bảo method là VIẾT HOA (một số server kén DELETE viết thường) và gắn Token mới
-              const retryConfig = {
-                ...originalRequest,
-                method: originalRequest.method?.toUpperCase() || 'GET',
-                headers: {
-                  ...originalRequest.headers,
-                  'Authorization': `Bearer ${newAuth.accessToken}`
-                }
-              }
-              
-              console.log('Đang thử lại với Token mới:', retryConfig.method, retryConfig.url)
-              return apiClient.request(retryConfig)
+      try {
+        // Không cần gửi body — browser tự gửi HttpOnly Cookie refreshToken
+        const refreshRes = await axios.post(`${API_BASE}/auth/refresh`, {}, {
+          withCredentials: true
+        })
+        
+        if (refreshRes.data && refreshRes.data.accessToken) {
+          // Chỉ cập nhật accessToken trong localStorage, không có refreshToken
+          const stored = localStorage.getItem('jira_auth')
+          if (stored) {
+            const auth = JSON.parse(stored)
+            const newAuth = { ...auth, accessToken: refreshRes.data.accessToken }
+            localStorage.setItem('jira_auth', JSON.stringify(newAuth))
+            console.log('[API] Access Token đã được làm mới thành công')
+          }
+          
+          const retryConfig = {
+            ...originalRequest,
+            method: originalRequest.method?.toUpperCase() || 'GET',
+            headers: {
+              ...originalRequest.headers,
+              'Authorization': `Bearer ${refreshRes.data.accessToken}`
             }
           }
-        } catch (e) {
-          console.error('Làm mới token thất bại:', e)
-          localStorage.removeItem('jira_auth')
-          if (window.location.pathname !== '/login') window.location.href = '/login'
+          
+          console.log('[API] Đang thử lại request:', retryConfig.method, retryConfig.url)
+          return apiClient.request(retryConfig)
         }
+      } catch (e) {
+        console.error('[API] Làm mới token thất bại:', e)
+        localStorage.removeItem('jira_auth')
+        if (window.location.pathname !== '/login') window.location.href = '/login'
       }
     }
     

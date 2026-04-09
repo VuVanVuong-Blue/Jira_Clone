@@ -25,7 +25,7 @@ public class Notification {
     private User recipient;
 
     @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "actor_id", nullable = false)
+    @JoinColumn(name = "actor_id", nullable = true) // null khi hệ thống tự gửi (VD: deadline_reminder)
     @ToString.Exclude
     @EqualsAndHashCode.Exclude
     private User actor;
